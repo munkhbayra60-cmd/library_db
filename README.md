@@ -20,3 +20,89 @@
    Хэрэв танд backup файл байгаа бол дараах тушаалаар сэргээж болно:
    ```bash
    mysql -u root -p library_db < library_db_backup.sql
+CREATE DATABASE IF NOT EXISTS library_db;
+USE library_db;
+CREATE TABLE librarians (
+    librarian_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(20)
+);
+CREATE TABLE members (
+    member_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    join_date DATE NOT NULL
+);
+CREATE TABLE books (
+    book_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    author VARCHAR(100) NOT NULL,
+    isbn VARCHAR(20) UNIQUE NOT NULL,
+    published_year INT
+);
+CREATE TABLE borrow_records (
+    record_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    book_id INT NOT NULL,
+    librarian_id INT NOT NULL,
+    borrow_date DATE NOT NULL,
+    return_date DATE,
+    FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (librarian_id) REFERENCES librarians(librarian_id) ON DELETE CASCADE
+);
+INSERT INTO librarians (name, email, phone) VALUES
+('Бат-Эрдэнэ', 'bat@library.mn', '99111111'),
+('Сарантуяа', 'saraa@library.mn', '99222222');
+INSERT INTO members (first_name, last_name, email, join_date) VALUES
+('Дорж', 'Болд', 'dorj@gmail.com', '2026-01-15'),
+('Цэцэг', 'Ганболд', 'tsetseg@gmail.com', '2026-02-01'),
+('Хүслэн', 'Энхбаяр', 'huslen@gmail.com', '2026-03-10');
+INSERT INTO books (title, author, isbn, published_year) VALUES
+('Нүүдэл суудал', 'Б.Баабар', '978999290001', 2006),
+('Ногоон нүдэн лам', 'Ц.Түмэнбаяр', '978999290002', 2008),
+('Туйлшрал', 'Л.Түдэв', '978999290003', 1995),
+('Монголын нууц товчоо', 'Үл мэдэгдэх', '978999290004', 1240);
+INSERT INTO borrow_records (member_id, book_id, librarian_id, borrow_date, return_date) VALUES
+(1, 1, 1, '2026-03-20', NULL),        -- Дорж "Нүүдэл суудал" авсан
+(1, 2, 1, '2026-03-22', NULL),        -- Дорж "Ногоон нүдэн лам" авсан
+(2, 2, 2, '2026-03-25', '2026-03-30'), -- Цэцэг "Ногоон нүдэн лам" аваад буцаасан
+(3, 3, 2, '2026-03-28', NULL);        -- Хүслэн "Туйлшрал" авсан
+SELECT 
+    m.first_name AS 'Гишүүний нэр', 
+    b.title AS 'Номын нэр', 
+    l.name AS 'Номын санч'
+FROM borrow_records br
+JOIN members m ON br.member_id = m.member_id
+JOIN books b ON br.book_id = b.book_id
+JOIN librarians l ON br.librarian_id = l.librarian_id;
+SELECT 
+    b.title AS 'Номын нэр', 
+    COUNT(br.record_id) AS 'Түрээслэгдсэн тоо'
+FROM books b
+LEFT JOIN borrow_records br ON b.book_id = br.book_id
+GROUP BY b.book_id, b.title;
+SELECT 
+    b.title AS 'Номын нэр', 
+    COUNT(br.record_id) AS 'Түрээслэгдсэн тоо'
+FROM books b
+JOIN borrow_records br ON b.book_id = br.book_id
+GROUP BY b.book_id, b.title
+ORDER BY COUNT(br.record_id) DESC
+LIMIT 1;
+SELECT 
+    m.first_name AS 'Гишүүний нэр', 
+    COUNT(br.record_id) AS 'Авсан номын тоо'
+FROM members m
+JOIN borrow_records br ON m.member_id = br.member_id
+GROUP BY m.member_id, m.first_name
+HAVING COUNT(br.record_id) >= 2;
+CREATE USER 'admin_user'@'localhost' IDENTIFIED BY 'AdminPassword123!';
+GRANT ALL PRIVILEGES ON library_db.* TO 'admin_user'@'localhost';
+CREATE USER 'report_user'@'localhost' IDENTIFIED BY 'ReportPassword123!';
+GRANT SELECT ON library_db.* TO 'report_user'@'localhost';
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR 'admin_user'@'localhost';
+SHOW GRANTS FOR 'report_user'@'localhost';
